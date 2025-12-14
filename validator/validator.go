@@ -19,6 +19,11 @@ type Cfg struct {
 	CookieName   string `json:"cookie_name"`
 	CookieValue  string `json:"cookie_value"`
 	CookieDomain string `json:"cookie_domain"`
+	CookieExpire int64  `json:"cookie_expire"`
+	DeviceName   string `json:"device_name"`
+	DeviceValue  string `json:"device_value"`
+	DeviceDomain string `json:"device_domain"`
+	DeviceExpire int64  `json:"device_expire"`
 }
 
 var cfg *Cfg
@@ -37,8 +42,13 @@ func main() {
 			Path:         "/usr/bin/chromium",
 			Headless:     true,
 			CookieName:   "CF_Authorization",
-			CookieValue:  "VALID-CLOUDFLAREACCESS.COM-TOKEN",
+			CookieValue:  "VALID-CLOUDFLARE-AUTH-TOKEN",
 			CookieDomain: "ORGANIZATION.cloudflareaccess.com",
+			CookieExpire: 1111111111,
+			DeviceName:   "CF_Device",
+			DeviceValue:  "VALID-CLOUDLFARE-DEVICE-TOKEN",
+			DeviceDomain: "ORGANIZATION.cloudflareaccess.com",
+			DeviceExpire: 1111111111,
 		}
 		if err := config.Save("validator.json", cfg); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -55,25 +65,34 @@ func main() {
 	defer cancel()
 
 	var html string
-
-	cookieName := cfg.CookieName
-	cookieValue := cfg.CookieValue
-	cookieDomain := cfg.CookieDomain
+	expiresAuth := cdp.TimeSinceEpoch(time.Unix(cfg.CookieExpire, 0).UTC())
+	expiresDevice := cdp.TimeSinceEpoch(time.Unix(cfg.DeviceExpire, 0).UTC())
 
 	if err := chromedp.Run(ctx,
 		network.Enable(),
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			expires := cdp.TimeSinceEpoch(time.Now().Add(30 * time.Minute))
-			return network.SetCookie(cookieName, cookieValue).
-				WithDomain(cookieDomain).
+			if err := network.SetCookie(cfg.CookieName, cfg.CookieValue).
+				WithDomain(cfg.CookieDomain).
 				WithPath("/").
-				WithExpires(&expires).
-				Do(ctx)
-		})); err != nil {
+				WithExpires(&expiresAuth).
+				WithSecure(true).
+				Do(ctx); err != nil {
+				return err
+			}
+			if err := network.SetCookie(cfg.DeviceName, cfg.DeviceValue).
+				WithDomain(cfg.DeviceDomain).
+				WithPath("/").
+				WithExpires(&expiresDevice).
+				WithSecure(true).
+				Do(ctx); err != nil {
+				return err
+			}
+			return nil
+		}),
+	); err != nil {
 		fmt.Fprintln(os.Stderr, "Chromedp run cookie error:", err)
-		os.Exit(1)
+		os.Exit(3)
 	}
-
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(link),
 		chromedp.WaitVisible(`#code-form`, chromedp.ByID),
@@ -82,6 +101,7 @@ func main() {
 		chromedp.OuterHTML("html", &html),
 	); err != nil {
 		fmt.Fprintln(os.Stderr, "Chromedp run approve error:", err)
+		fmt.Println(html)
 		os.Exit(1)
 	}
 
@@ -90,6 +110,7 @@ func main() {
 		os.Exit(0)
 	} else {
 		fmt.Fprintln(os.Stdout, "Approve failed!")
+		fmt.Println(html)
 		os.Exit(2)
 	}
 
