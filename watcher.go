@@ -130,7 +130,6 @@ func detect(lines []string) {
 		}
 	}
 
-	fmt.Fprintln(os.Stdout, "No approve required.")
 }
 
 func main() {
