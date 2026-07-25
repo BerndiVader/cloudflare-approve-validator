@@ -14,16 +14,17 @@ import (
 )
 
 type Cfg struct {
-	Path         string `json:"path"`
-	Headless     bool   `json:"headless"`
-	CookieName   string `json:"cookie_name"`
-	CookieValue  string `json:"cookie_value"`
-	CookieDomain string `json:"cookie_domain"`
-	CookieExpire int64  `json:"cookie_expire"`
-	DeviceName   string `json:"device_name"`
-	DeviceValue  string `json:"device_value"`
-	DeviceDomain string `json:"device_domain"`
-	DeviceExpire int64  `json:"device_expire"`
+	Path          string `json:"path"`
+	Headless      bool   `json:"headless"`
+	CookieName    string `json:"cookie_name"`
+	CookieValue   string `json:"cookie_value"`
+	CookieDomain  string `json:"cookie_domain"`
+	CookieExpire  int64  `json:"cookie_expire"`
+	DeviceName    string `json:"device_name"`
+	DeviceValue   string `json:"device_value"`
+	DeviceDomain  string `json:"device_domain"`
+	DeviceExpire  int64  `json:"device_expire"`
+	SuccessNeedle string `json:"success_needle"`
 }
 
 var cfg *Cfg
@@ -39,16 +40,17 @@ func main() {
 
 	if err := config.Load("validator.json", cfg); err != nil {
 		cfg = &Cfg{
-			Path:         "/usr/bin/chromium",
-			Headless:     true,
-			CookieName:   "CF_Authorization",
-			CookieValue:  "VALID-CLOUDFLARE-AUTH-TOKEN",
-			CookieDomain: "ORGANIZATION.cloudflareaccess.com",
-			CookieExpire: 1111111111,
-			DeviceName:   "CF_Device",
-			DeviceValue:  "VALID-CLOUDLFARE-DEVICE-TOKEN",
-			DeviceDomain: "ORGANIZATION.cloudflareaccess.com",
-			DeviceExpire: 1111111111,
+			Path:          "/usr/bin/chromium",
+			Headless:      true,
+			CookieName:    "CF_Authorization",
+			CookieValue:   "VALID-CLOUDFLARE-AUTH-TOKEN",
+			CookieDomain:  "ORGANIZATION.cloudflareaccess.com",
+			CookieExpire:  1111111111,
+			DeviceName:    "CF_Device",
+			DeviceValue:   "VALID-CLOUDLFARE-DEVICE-TOKEN",
+			DeviceDomain:  "ORGANIZATION.cloudflareaccess.com",
+			DeviceExpire:  1111111111,
+			SuccessNeedle: "<h1 class=\"Card-title\">Success!</h1>",
 		}
 		if err := config.Save("validator.json", cfg); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -105,7 +107,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if strings.Contains(html, `<div class="Success">`) {
+	if strings.Contains(html, cfg.SuccessNeedle) {
 		fmt.Fprintln(os.Stdout, "Approve ok!")
 		os.Exit(0)
 	} else {
